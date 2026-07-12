@@ -1,22 +1,26 @@
-import sambarKaram from "@/assets/products/sambar-karam.jpg";
-import godduKaram from "@/assets/products/goddu-karam.jpg";
-import podulu from "@/assets/products/podulu.jpg";
-import vegPickles from "@/assets/products/veg-pickles.jpg";
-import nonvegPickles from "@/assets/products/nonveg-pickles.jpg";
-import sweets from "@/assets/products/sweets.jpg";
-import snacks from "@/assets/products/snacks.jpg";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart } from "lucide-react";
 
-const products = [
-  { name: "Sambar Karam", desc: "Aromatic spice blend for the perfect sambar, made with hand-roasted lentils & chilies.", image: sambarKaram },
-  { name: "Goddu Karam", desc: "Fiery red chili powder with garlic — the soul of every South Indian meal.", image: godduKaram },
-  { name: "Podulu", desc: "Traditional spice powders — peanut, sesame, flax & more for your daily rice plate.", image: podulu },
-  { name: "Veg Pickles", desc: "Sun-ripened mango, tangy lemon & mixed vegetable pickles in pure mustard oil.", image: vegPickles },
-  { name: "Non-Veg Pickles", desc: "Succulent chicken & prawn pickles marinated in secret family spice blends.", image: nonvegPickles },
-  { name: "Sweets", desc: "Handmade Mysore Pak, Laddu & traditional sweets for festive celebrations.", image: sweets },
-  { name: "Snacks", desc: "Crispy murukku, ribbon pakoda & banana chips — perfect tea-time companions.", image: snacks },
-];
+type Product = {
+  id: string; name: string; description: string | null; price: number;
+  image_url: string | null; stock: number;
+};
 
 const ProductsSection = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const { add } = useCart();
+
+  useEffect(() => {
+    supabase.from("products").select("id, name, description, price, image_url, stock")
+      .eq("is_active", true).order("name").limit(8)
+      .then(({ data }) => setProducts((data as Product[]) || []));
+  }, []);
+
   return (
     <section id="products" className="py-20 bg-warm-bg">
       <div className="container mx-auto px-4">
@@ -29,35 +33,35 @@ const ProductsSection = () => {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product, i) => (
-            <div
-              key={i}
-              className="group bg-card rounded-lg overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
-            >
-              <div className="overflow-hidden aspect-square">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  loading="lazy"
-                  width={600}
-                  height={600}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
+          {products.map((p) => (
+            <div key={p.id}
+              className="group bg-card rounded-lg overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col">
+              <div className="overflow-hidden aspect-square bg-muted">
+                {p.image_url && (
+                  <img src={p.image_url} alt={p.name} loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                )}
               </div>
-              <div className="p-5">
-                <h3 className="font-heading text-xl font-semibold text-foreground mb-2">{product.name}</h3>
-                <p className="text-muted-foreground text-sm mb-4 leading-relaxed">{product.desc}</p>
-                <a
-                  href="https://wa.me/919999999999"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block bg-accent text-accent-foreground px-5 py-2 rounded-md text-sm font-semibold hover:brightness-110 transition-all"
-                >
-                  Buy Now
-                </a>
+              <div className="p-5 flex flex-col flex-1">
+                <h3 className="font-heading text-xl font-semibold text-foreground mb-2">{p.name}</h3>
+                <p className="text-muted-foreground text-sm mb-4 leading-relaxed flex-1">{p.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className="font-heading text-2xl font-bold text-primary">₹{Number(p.price).toFixed(0)}</span>
+                  <Button size="sm" disabled={p.stock <= 0}
+                    onClick={() => { add({ id: p.id, name: p.name, price: Number(p.price), image_url: p.image_url }); toast.success(`${p.name} added to cart`); }}>
+                    <ShoppingCart className="w-4 h-4 mr-1" />
+                    {p.stock <= 0 ? "Sold Out" : "Add"}
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="text-center mt-10">
+          <Link to="/shop">
+            <Button size="lg" variant="outline">View All Products</Button>
+          </Link>
         </div>
       </div>
     </section>
