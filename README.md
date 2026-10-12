@@ -132,3 +132,30 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Razorpay setup
+
+Checkout uses Supabase Edge Functions so prices are calculated on the server and the Razorpay secret is never exposed to the browser.
+
+1. Apply the Supabase migrations.
+2. Set the Edge Function secrets:
+
+```sh
+npx supabase secrets set RAZORPAY_KEY_ID=rzp_test_xxx RAZORPAY_KEY_SECRET=xxx RAZORPAY_WEBHOOK_SECRET=xxx
+```
+
+3. Deploy the functions:
+
+```sh
+npx supabase functions deploy create-razorpay-order
+npx supabase functions deploy verify-razorpay-payment
+npx supabase functions deploy razorpay-webhook
+```
+
+4. In Razorpay Test Mode, add this webhook URL and subscribe to `payment.captured` and `order.paid`:
+
+```text
+https://bjyykuxicwiycwgkahoa.supabase.co/functions/v1/razorpay-webhook
+```
+
+Use the same webhook secret in Razorpay and `RAZORPAY_WEBHOOK_SECRET`. Complete a test payment before replacing the test credentials with live credentials.

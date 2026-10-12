@@ -13,7 +13,7 @@ const STATUSES = ["pending", "confirmed", "preparing", "shipped", "delivered", "
 type Order = {
   id: string; order_number: number; customer_name: string; customer_phone: string;
   customer_email: string | null; shipping_address: string; city: string | null; pincode: string | null;
-  notes: string | null; total: number; status: string; created_at: string;
+  notes: string | null; total: number; status: string; payment_status: string; created_at: string;
   order_items: { product_name: string; quantity: number; unit_price: number; line_total: number }[];
 };
 
@@ -61,18 +61,19 @@ const AdminOrders = () => {
           <TableHeader>
             <TableRow>
               <TableHead>#</TableHead><TableHead>Customer</TableHead><TableHead>Phone</TableHead>
-              <TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead>Actions</TableHead>
+              <TableHead>Total</TableHead><TableHead>Payment</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
-              : orders.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No orders</TableCell></TableRow>
+            {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Loading...</TableCell></TableRow>
+              : orders.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No orders</TableCell></TableRow>
               : orders.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-semibold">{o.order_number}</TableCell>
                   <TableCell>{o.customer_name}</TableCell>
                   <TableCell>{o.customer_phone}</TableCell>
                   <TableCell>₹{Number(o.total).toFixed(2)}</TableCell>
+                  <TableCell><Badge variant="outline">{o.payment_status}</Badge></TableCell>
                   <TableCell><Badge>{o.status}</Badge></TableCell>
                   <TableCell className="text-xs">{new Date(o.created_at).toLocaleString()}</TableCell>
                   <TableCell>

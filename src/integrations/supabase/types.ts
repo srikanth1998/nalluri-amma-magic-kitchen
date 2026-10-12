@@ -66,13 +66,19 @@ export type Database = {
         Row: {
           city: string | null
           created_at: string
+          currency: string
           customer_email: string | null
           customer_name: string
           customer_phone: string
           id: string
           notes: string | null
           order_number: number
+          paid_at: string | null
+          payment_method: string
+          payment_status: string
           pincode: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
           shipping_address: string
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
@@ -83,13 +89,19 @@ export type Database = {
         Insert: {
           city?: string | null
           created_at?: string
+          currency?: string
           customer_email?: string | null
           customer_name: string
           customer_phone: string
           id?: string
           notes?: string | null
           order_number?: number
+          paid_at?: string | null
+          payment_method?: string
+          payment_status?: string
           pincode?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
           shipping_address: string
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -100,13 +112,19 @@ export type Database = {
         Update: {
           city?: string | null
           created_at?: string
+          currency?: string
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string
           id?: string
           notes?: string | null
           order_number?: number
+          paid_at?: string | null
+          payment_method?: string
+          payment_status?: string
           pincode?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
           shipping_address?: string
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number

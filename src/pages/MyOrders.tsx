@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 
 type Order = {
-  id: string; order_number: number; total: number; status: string; created_at: string;
+  id: string; order_number: number; total: number; status: string; payment_status: string; created_at: string;
   order_items: { product_name: string; quantity: number; line_total: number }[];
 };
 
@@ -18,7 +18,7 @@ const MyOrders = () => {
   useEffect(() => {
     if (!user) return;
     supabase.from("orders")
-      .select("id, order_number, total, status, created_at, order_items(product_name, quantity, line_total)")
+      .select("id, order_number, total, status, payment_status, created_at, order_items(product_name, quantity, line_total)")
       .eq("user_id", user.id).order("created_at", { ascending: false })
       .then(({ data }) => setOrders((data as Order[]) || []));
   }, [user]);
@@ -43,7 +43,10 @@ const MyOrders = () => {
                       <p className="font-heading font-semibold">Order #{o.order_number}</p>
                       <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString()}</p>
                     </div>
-                    <Badge>{o.status}</Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="outline">{o.payment_status}</Badge>
+                      <Badge>{o.status}</Badge>
+                    </div>
                   </div>
                   <div className="text-sm space-y-1 mb-3">
                     {o.order_items.map((i, idx) => (

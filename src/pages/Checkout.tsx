@@ -22,6 +22,46 @@ const schema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
+type PaymentOrder = {
+  localOrderId: string;
+  orderNumber: number;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+};
+
+const loadRazorpay = () => new Promise<boolean>((resolve) => {
+  if (window.Razorpay) return resolve(true);
+  const existing = document.getElementById("razorpay-checkout");
+  if (existing) {
+    existing.addEventListener("load", () => resolve(true), { once: true });
+    existing.addEventListener("error", () => resolve(false), { once: true });
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.id = "razorpay-checkout";
+  script.src = "https://checkout.razorpay.com/v1/checkout.js";
+  script.async = true;
+  script.onload = () => resolve(true);
+  script.onerror = () => resolve(false);
+  document.body.appendChild(script);
+});
+
+const functionErrorMessage = async (error: unknown, fallback: string) => {
+  const response = (error as { context?: Response } | null)?.context;
+  if (response) {
+    try {
+      const payload = await response.json() as { error?: string };
+      if (payload.error) return payload.error;
+    } catch {
+      // The SDK error message below is still useful if the response has no JSON body.
+    }
+  }
+  return error instanceof Error ? error.message : fallback;
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, subtotal, clear } = useCart();
@@ -41,30 +81,70 @@ const Checkout = () => {
     const parsed = schema.safeParse(form);
     if (!parsed.success) return toast.error("Please fill in all required fields correctly.");
     setSubmitting(true);
-    const { data: order, error } = await supabase.from("orders").insert({
-      user_id: user?.id ?? null,
-      customer_name: form.customer_name,
-      customer_phone: form.customer_phone,
-      customer_email: form.customer_email || null,
-      shipping_address: form.shipping_address,
-      city: form.city || null,
-      pincode: form.pincode || null,
-      notes: form.notes || null,
-      subtotal, total: subtotal,
-    }).select().single();
-    if (error || !order) { setSubmitting(false); return toast.error(error?.message || "Failed to place order"); }
 
-    const { error: itemsErr } = await supabase.from("order_items").insert(
-      items.map((i) => ({
-        order_id: order.id, product_id: i.id, product_name: i.name,
-        unit_price: i.price, quantity: i.quantity, line_total: i.price * i.quantity,
-      }))
-    );
-    setSubmitting(false);
-    if (itemsErr) return toast.error(itemsErr.message);
-    clear();
-    toast.success("Order placed successfully!");
-    navigate(`/order-success?n=${order.order_number}`);
+    const checkoutLoaded = await loadRazorpay();
+    if (!checkoutLoaded) {
+      setSubmitting(false);
+      return toast.error("Could not load the secure payment window. Please try again.");
+    }
+
+    const { data, error } = await supabase.functions.invoke<PaymentOrder>("create-razorpay-order", {
+      body: {
+        customer: parsed.data,
+        items: items.map((item) => ({ product_id: item.id, quantity: item.quantity })),
+      },
+    });
+    if (error || !data) {
+      setSubmitting(false);
+      return toast.error(await functionErrorMessage(error, "Failed to create payment order"));
+    }
+
+    const checkout = new window.Razorpay({
+      key: data.keyId,
+      amount: data.amount,
+      currency: data.currency,
+      name: "Nalluri Foods",
+      description: `Order #${data.orderNumber}`,
+      order_id: data.razorpayOrderId,
+      prefill: {
+        name: parsed.data.customer_name,
+        email: parsed.data.customer_email || "",
+        contact: parsed.data.customer_phone,
+      },
+      theme: { color: "#1e3a8a" },
+      modal: {
+        ondismiss: () => {
+          setSubmitting(false);
+          toast.info("Payment cancelled. Your cart has been kept.");
+        },
+      },
+      handler: async (response) => {
+        const { data: verified, error: verifyError } = await supabase.functions.invoke<{
+          success: boolean;
+          orderNumber: number;
+        }>("verify-razorpay-payment", {
+          body: { localOrderId: data.localOrderId, ...response },
+        });
+
+        if (verifyError || !verified?.success) {
+          setSubmitting(false);
+          return toast.error(await functionErrorMessage(
+            verifyError,
+            "Payment was received but could not be verified. Contact support before paying again.",
+          ));
+        }
+
+        clear();
+        toast.success("Payment successful!");
+        navigate(`/order-success?n=${verified.orderNumber}`);
+      },
+    });
+
+    checkout.on("payment.failed", (response) => {
+      setSubmitting(false);
+      toast.error(response.error.description || "Payment failed. Please try again.");
+    });
+    checkout.open();
   };
 
   return (
@@ -100,9 +180,9 @@ const Checkout = () => {
                 <span>Total</span><span>₹{subtotal.toFixed(2)}</span>
               </div>
               <Button disabled={submitting} className="w-full" type="submit">
-                {submitting ? "Placing order..." : "Place Order"}
+                {submitting ? "Opening secure payment..." : "Pay Securely"}
               </Button>
-              <p className="text-xs text-muted-foreground text-center">You'll be contacted for payment on delivery / bank transfer.</p>
+              <p className="text-xs text-muted-foreground text-center">Secure online payment powered by Razorpay.</p>
             </div>
           </form>
         </div>
